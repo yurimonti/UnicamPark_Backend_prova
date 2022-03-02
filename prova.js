@@ -10,6 +10,7 @@ const db = require('./config/database');
 const cors = require('cors');
 const dateController = require('./utils/dateManager');
 const Controller = require('./utils/controller');
+const auth = require('./auth/jwtManager');
 
 app.use(cors());
 app.use(express.json());
@@ -45,8 +46,8 @@ db.sync({ force: true }).then(async () => {
         let park = await Park.findOne({ where: { codeNumber: '3' } });
         await ticket.setPark(park);
     }
-    let myStart = dateController.createDate(new Date('2022 02 25 16:00:00'));
-    let myEnd = dateController.createDate(new Date("2022 02 25 17:00:00"));
+    let myStart = dateController.createDate(new Date('2022 03 02 16:00:00'));
+    let myEnd = dateController.createDate(new Date("2022 03 02 17:00:00"));
     let ticket = await quaccko.createTicket({ start: myStart, end: myEnd, targa: 'ef555gh' });
     let park = await Park.findOne({ where: { codeNumber: '3' } });
     await ticket.setPark(park);
@@ -76,7 +77,68 @@ setInterval(async () => {
     await setAvailability();
 }, 1000 * 60 * 2);
 
-//------------------------------funzioni utili-----------------------------------------------
+//------------------------------authentication-----------------------------------------------
+
+app.post('/auth/registration', async (req, res) => {
+    let email = req.body.email;
+    let password = req.body.password;
+    let username = req.body.username;
+    if (await User.findOne({ where: { email: email}})|| await User.findOne({ where: { username: username}}))
+        res.status(500).send("this account already exists!!");
+    else {
+      await User.create({ email: email, username: username, password: passManager.generatePass(password) });
+      return res.status(201).send("registration completed");
+    }
+  });
+  
+  
+  app.post('/auth/login', async (req, res) => {
+    let username = req.body.username;
+    let password = req.body.password;
+    let user = await User.findOne({where: {
+      [db.Sequelize.Op.or]: [
+        { username: username },
+        { email: username }
+      ]
+    }});
+    if (user && passManager.comparePass(password, user.password)) {
+      let accessToken = authMan.getAccessToken(user);
+      let refreshToken = authMan.getRefreshToken(user);
+      authMan.refreshTokens.push(refreshToken);
+      return res.json({ accessToken: accessToken, refreshToken: refreshToken });
+    }
+    else return res.status(400).send("username or password is not correct");
+  });
+  
+  //TODO: rivedere questo metodo
+  app.post("/auth/refresh", (req, res) => {
+    let refreshToken = req.body.refreshToken;
+    // vede se c'è il refreshToken o se è presente nella lista dei refresh tokens, se non è presente manda errore 401
+    if (!refreshToken || !authMan.refreshTokens.includes(refreshToken)) return res.status(401).send("You are not authenticated!");
+    let user = authMan.getUserByRefreshToken(refreshToken);
+    //refresha i tokens validi
+    authMan.refreshTokens = authMan.refreshTokens.filter((token) => token !== refreshToken);
+    // aggiorna il token ed il refreshToken
+    let newAccessToken = authMan.getAccessToken(user);
+    let newRefreshToken = authMan.getRefreshToken(user);
+    authMan.refreshTokens.push(newRefreshToken);
+    //manda in risposta i nuovi tokens
+    res.status(200).json({
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+    });
+  });
+  
+  //TODO: rivedere questo metodo
+  //FIXME: cambiare il meccanismo di cancellazione dei tokens..
+  app.post("/auth/logout", authMan.authenticateToken, (req, res) => {
+    let refreshToken = req.body.refreshToken;
+    if(!refreshToken) res.status(400).send('token not present');
+    //refresha i tokens
+    authMan.refreshTokens = authMan.refreshTokens.filter((token) => token !== refreshToken);
+    //restituisce lo stato 200
+    res.json("You logged out successfully.");
+  });
 
 
 
@@ -85,25 +147,49 @@ setInterval(async () => {
  * invia i parcheggi
  */
 app.get('/parks', async (req, res) => {
-    let start = dateController.createDate(new Date("2022 02 25 17:30:00"));
-    let end = dateController.createDate(new Date("2022 02 25 18:00:00"));
-    let parks = await Controller.getParksAvailable(start, end);
+    let parks = await Controller.getParksAvailable();
+    res.json(parks);
+})
+/**
+ * invia i parcheggi disponibili filtrati per data
+ */
+ app.post('/parks', async (req, res) => {
+    let start = req.body.start;
+    let end = req.body.end;
+    let parks = await Controller.getParksAvailable();
+    if(start && end){
+        let s = dateController.createDate(new Date(start));
+        let e = dateController.createDate(new Date(end));
+        parks = await Controller.getParksAvailable(s,e);
+    }
+    if(!start&&end) {
+        let e = dateController.createDate(new Date(end));
+        parks = await Controller.getParksAvailable(new Date(), e);
+    }
+    if(start&&!end){
+        let s = dateController.createDate(new Date(start));
+        parks = await Controller.getParksAvailable(s);
+    }
     res.json(parks);
 })
 
 /**
- * invia i tickets attivi
+ * invia i tickets di un utente
  */
-app.get('/tickets', async (req, res) => {
-    let tickets = await Controller.getTicketsFiltered(true);
-    res.json(tickets);
+app.get('/tickets', auth.authenticateToken ,async (req, res) => {
+    let userId = req.user.id;
+    let activeTickets = await Controller.getTicketsFiltered(true,userId);
+    let pastTickets = await Controller.getTicketsFiltered(false,userId);
+    //let tickets = await Controller.getTicketsFiltered(false);
+    res.json({activeTickets:activeTickets,pastTickets:pastTickets});
 })
 
 /**
  * invia la fine di una prenotazione su un parcheggio corrente
  */
-app.get('/park/endTime', async (req, res) => {
-    let ticket = await Controller.endOfCurrentReservation(3);
+app.post('/park/endTime', async (req, res) => {
+    let parkId = req.body.parkId;
+    let ticket = await Controller.endOfCurrentReservation(parkId);
     if (!ticket) return res.json('errore');
     return res.json(ticket.end);
 })
@@ -111,13 +197,35 @@ app.get('/park/endTime', async (req, res) => {
 /**
  * invia la prossima prenotazione su un parcheggio corrente
  */
-app.get('/park/next', async (req, res) => {
-    let ticket = await Controller.getNextTicketOfPark(3);
-    if (!ticket) return res.json('errore');
-    return res.json(ticket.start);
+app.post('/park/next', async (req, res) => {
+    let parkId = req.body.parkId;
+    let tickets = await Controller.getTicketsFiltered(true);
+    tickets = tickets.filter(t=>{return t.park_id == parkId}).sort((t1, t2) => { return t1.start.getTime() - t2.start.getTime() });
+    return res.json(tickets);
+})
+
+app.post('/park/info',async (req, res) => {
+    let parkId = req.body.parkId;
+    let park = await Park.findByPk(parkId);
+    let location = await park.getLocation();
+    let nextTicket = await Controller.getNextTicketOfPark(parkId);
+    nextTicket = nextTicket ? dateController.getTimeStringFromDate(nextTicket.start) : 'is empty for the whole day';
+/*     nextTicket = dateController.getTimeStringFromDate(nextTicket.start); */
+    let ticket = await Controller.endOfCurrentReservation(parkId);
+/*     ticket = dateController.getTimeStringFromDate(ticket.end); */
+    /* if(!ticket) ticket = 'is free'; */
+    ticket = ticket ? dateController.getTimeStringFromDate(ticket.end) : 'is free';
+    /* if(!nextTicket) nextTicket = 'is empty for the whole day'; */
+    return res.json({end:ticket,next:nextTicket,location:location});
 })
 
 //TODO: finire questo metodo
 app.get('/park/info', async (req, res) => {
-
+    let parkId = req.body.parkId;
+    let park = await Park.findByPk(parkId);
+    let ticket;
+    if(park.isEmpty) ticket = await Controller.getNextTicketOfPark(park.id);
+    else ticket = await Controller.endOfCurrentReservation(park.id)
+    if(!ticket) return res.json('error');
+    return res.json({park:park,ticket:ticket});
 })

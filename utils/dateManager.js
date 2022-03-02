@@ -32,4 +32,9 @@ function controlStartEnd(start,end){
     else return true;
 }
 
-module.exports = {getNow,controlStartEnd,controlDate,createDate};
+function getTimeStringFromDate(date){
+    let result = date.getHours()+":"+ date.getMinutes();
+    return result;
+}
+
+module.exports = {getNow,controlStartEnd,controlDate,createDate,getTimeStringFromDate};
