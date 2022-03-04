@@ -11,6 +11,8 @@ const cors = require('cors');
 const dateController = require('./utils/dateManager');
 const Controller = require('./utils/controller');
 const auth = require('./auth/jwtManager');
+const req = require('express/lib/request');
+const res = require('express/lib/response');
 
 app.use(cors());
 app.use(express.json());
@@ -22,6 +24,14 @@ app.listen(port, () => {
 app.get('/', (req, res) => {
     return res.send('Hello World!');
 });
+
+//TODO:cancellare dopo prove
+const thisNow = ()=>{
+    let now = new Date();
+    console.log(now.getHours()+' '+now.getMonth());
+}
+
+thisNow();
 
 //-----------------------------initialization----------------------------------
 /**
@@ -39,24 +49,31 @@ db.sync({ force: true }).then(async () => {
     }
     let quaccko = await User.create({ email: 'big.quaccko@gmail.com', username: 'big.quaccko', password: passManager.generatePass('ciao') });
     let marco = await User.create({ email: 'marco.montanari@gmail.com', username: 'marco.montanari', password: passManager.generatePass('marco') });
-    let start = dateController.createDate(new Date('2022 02 11 11:32:00'));
-    let end = dateController.createDate(new Date('2022 02 11 17:54:00'));
-    if (dateController.controlStartEnd(start, end)) {
-        let ticket = await quaccko.createTicket({ start: start, end: end, targa: 'AB123CD' });
-        let park = await Park.findOne({ where: { codeNumber: '3' } });
-        await ticket.setPark(park);
-    }
-    let myStart = dateController.createDate(new Date('2022 03 02 16:00:00'));
-    let myEnd = dateController.createDate(new Date("2022 03 02 17:00:00"));
+    /* let start = dateController.createDate(new Date('2022 02 11 11:32:00'));
+    let end = dateController.createDate(new Date('2022 02 11 17:54:00')); */
+    let start = new Date();
+    start.setHours(11);
+    let end = new Date();
+    end.setHours(16);
+    //if (dateController.controlStartEnd(start, end)) {
+        let ticket1 = await quaccko.createTicket({ start: start, end: end, targa: 'AB123CD' });
+        let park1 = await Park.findOne({ where: { codeNumber: '3' } });
+        await ticket1.setPark(park1);
+    //}
+    /* let myStart = dateController.createDate(new Date('2022 03 04 13:00:00'));
+    let myEnd = dateController.createDate(new Date("2022 03 04 17:00:00")); */
+    let myStart = new Date('2022-03-04 11:00:00');
+    let myEnd = new Date("2022-03-04 17:00:00");
     let ticket = await quaccko.createTicket({ start: myStart, end: myEnd, targa: 'ef555gh' });
-    let park = await Park.findOne({ where: { codeNumber: '3' } });
+    let park = await Park.findOne({ where: { codeNumber: '2' } });
     await ticket.setPark(park);
 });
 //------------------------------------------------------------
 //funzioni per aggiornamento periodico
 const setAvailability = async () => {
     let parks = await Park.findAll();
-    let now = dateController.createDate(new Date());
+    // let now = dateController.createDate(new Date());
+    let now = new Date();
     let tickets = await Ticket.findAll({
         where: {
             [db.Sequelize.Op.and]: [
@@ -75,74 +92,19 @@ const setAvailability = async () => {
 
 setInterval(async () => {
     await setAvailability();
-}, 1000 * 60 * 2);
-
-//------------------------------authentication-----------------------------------------------
-
-app.post('/auth/registration', async (req, res) => {
-    let email = req.body.email;
-    let password = req.body.password;
-    let username = req.body.username;
-    if (await User.findOne({ where: { email: email}})|| await User.findOne({ where: { username: username}}))
-        res.status(500).send("this account already exists!!");
-    else {
-      await User.create({ email: email, username: username, password: passManager.generatePass(password) });
-      return res.status(201).send("registration completed");
-    }
-  });
-  
-  
-  app.post('/auth/login', async (req, res) => {
-    let username = req.body.username;
-    let password = req.body.password;
-    let user = await User.findOne({where: {
-      [db.Sequelize.Op.or]: [
-        { username: username },
-        { email: username }
-      ]
-    }});
-    if (user && passManager.comparePass(password, user.password)) {
-      let accessToken = authMan.getAccessToken(user);
-      let refreshToken = authMan.getRefreshToken(user);
-      authMan.refreshTokens.push(refreshToken);
-      return res.json({ accessToken: accessToken, refreshToken: refreshToken });
-    }
-    else return res.status(400).send("username or password is not correct");
-  });
-  
-  //TODO: rivedere questo metodo
-  app.post("/auth/refresh", (req, res) => {
-    let refreshToken = req.body.refreshToken;
-    // vede se c'è il refreshToken o se è presente nella lista dei refresh tokens, se non è presente manda errore 401
-    if (!refreshToken || !authMan.refreshTokens.includes(refreshToken)) return res.status(401).send("You are not authenticated!");
-    let user = authMan.getUserByRefreshToken(refreshToken);
-    //refresha i tokens validi
-    authMan.refreshTokens = authMan.refreshTokens.filter((token) => token !== refreshToken);
-    // aggiorna il token ed il refreshToken
-    let newAccessToken = authMan.getAccessToken(user);
-    let newRefreshToken = authMan.getRefreshToken(user);
-    authMan.refreshTokens.push(newRefreshToken);
-    //manda in risposta i nuovi tokens
-    res.status(200).json({
-      accessToken: newAccessToken,
-      refreshToken: newRefreshToken,
-    });
-  });
-  
-  //TODO: rivedere questo metodo
-  //FIXME: cambiare il meccanismo di cancellazione dei tokens..
-  app.post("/auth/logout", authMan.authenticateToken, (req, res) => {
-    let refreshToken = req.body.refreshToken;
-    if(!refreshToken) res.status(400).send('token not present');
-    //refresha i tokens
-    authMan.refreshTokens = authMan.refreshTokens.filter((token) => token !== refreshToken);
-    //restituisce lo stato 200
-    res.json("You logged out successfully.");
-  });
-
-
+}, 1000 * 10);
 
 //----------------------------------------------rest controller api------------------------------------
+
+app.post('/date',(req,res)=>{
+    let date = req.body.date;
+    date = new Date(date);
+    /* date = date.getTime();
+    let now = new Date(date);
+    date = new Date(date); */
+    res.json(date);
+})
+
 /**
  * invia i parcheggi
  */
@@ -158,8 +120,10 @@ app.get('/parks', async (req, res) => {
     let end = req.body.end;
     let parks = await Controller.getParksAvailable();
     if(start && end){
-        let s = dateController.createDate(new Date(start));
-        let e = dateController.createDate(new Date(end));
+        // let s = dateController.createDate(new Date(start));
+        // let e = dateController.createDate(new Date(end));
+        let s = new Date(start);
+        let e = new Date(end);
         parks = await Controller.getParksAvailable(s,e);
     }
     if(!start&&end) {
@@ -219,8 +183,7 @@ app.post('/park/info',async (req, res) => {
     return res.json({end:ticket,next:nextTicket,location:location});
 })
 
-//TODO: finire questo metodo
-app.get('/park/info', async (req, res) => {
+/* app.get('/park/info', async (req, res) => {
     let parkId = req.body.parkId;
     let park = await Park.findByPk(parkId);
     let ticket;
@@ -228,4 +191,67 @@ app.get('/park/info', async (req, res) => {
     else ticket = await Controller.endOfCurrentReservation(park.id)
     if(!ticket) return res.json('error');
     return res.json({park:park,ticket:ticket});
-})
+}) */
+
+//------------------------------authentication-----------------------------------------------
+
+app.post('/auth/registration', async (req, res) => {
+    let email = req.body.email;
+    let password = req.body.password;
+    let username = req.body.username;
+    if (await User.findOne({ where: { email: email}})|| await User.findOne({ where: { username: username}}))
+        res.status(500).send("this account already exists!!");
+    else {
+      await User.create({ email: email, username: username, password: passManager.generatePass(password) });
+      return res.status(201).send("registration completed");
+    }
+  });
+  
+  
+  app.post('/auth/login', async (req, res) => {
+    let username = req.body.username;
+    let password = req.body.password;
+    let user = await User.findOne({where: {
+      [db.Sequelize.Op.or]: [
+        { username: username },
+        { email: username }
+      ]
+    }});
+    if (user && passManager.comparePass(password, user.password)) {
+      let accessToken = authMan.getAccessToken(user);
+      let refreshToken = authMan.getRefreshToken(user);
+      authMan.refreshTokens.push(refreshToken);
+      return res.json({ accessToken: accessToken, refreshToken: refreshToken });
+    }
+    else return res.status(400).send("username or password is not correct");
+  });
+  
+  //TODO: rivedere questo metodo
+  app.post("/auth/refresh", (req, res) => {
+    let refreshToken = req.body.refreshToken;
+    // vede se c'è il refreshToken o se è presente nella lista dei refresh tokens, se non è presente manda errore 401
+    if (!refreshToken || !authMan.refreshTokens.includes(refreshToken)) return res.status(401).send("You are not authenticated!");
+    let user = authMan.getUserByRefreshToken(refreshToken);
+    //refresha i tokens validi
+    authMan.refreshTokens = authMan.refreshTokens.filter((token) => token !== refreshToken);
+    // aggiorna il token ed il refreshToken
+    let newAccessToken = authMan.getAccessToken(user);
+    let newRefreshToken = authMan.getRefreshToken(user);
+    authMan.refreshTokens.push(newRefreshToken);
+    //manda in risposta i nuovi tokens
+    res.status(200).json({
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+    });
+  });
+  
+  //TODO: rivedere questo metodo
+  //FIXME: cambiare il meccanismo di cancellazione dei tokens..
+  app.post("/auth/logout", auth.authenticateToken, (req, res) => {
+    let refreshToken = req.body.refreshToken;
+    if(!refreshToken) res.status(400).send('token not present');
+    //refresha i tokens
+    authMan.refreshTokens = authMan.refreshTokens.filter((token) => token !== refreshToken);
+    //restituisce lo stato 200
+    res.json("You logged out successfully.");
+  });

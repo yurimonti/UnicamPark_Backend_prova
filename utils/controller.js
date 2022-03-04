@@ -9,11 +9,27 @@ const ticketsOfParkPredicate = (ticket, parkId) => {
 
 const getParksAvailable = async (start, end, locationId) => {
     let parks;
+    let ticketsOn;
     if (!locationId) parks = await Park.findAll();
     else parks = await getParkInLocation(locationId);
-    if (!start && !end) return parks;
-    let ticketsOn;
-    if (!end) {
+    if (!start && !end) {
+        let now = new Date();
+        ticketsOn = await Ticket.findAll({
+            where: {
+                [db.Sequelize.Op.and]: [
+                    { start: { [db.Sequelize.Op.lte]: now } },
+                    { end: { [db.Sequelize.Op.gt]: now } }
+                ]
+            }
+        });
+        for (let park of parks) {
+            if (ticketsOn.find(t => t.park_id == park.id))
+                park.isEmpty = false;
+            else park.isEmpty = true;
+            await park.save();
+        }
+    }
+    /* if (!end) {
         ticketsOn = await Ticket.findAll({
             where: {
                 [db.Sequelize.Op.and]: [
@@ -22,7 +38,7 @@ const getParksAvailable = async (start, end, locationId) => {
                 ]
             }
         });
-    }
+    } */
     else {
         ticketsOn = await Ticket.findAll({
             where: {
@@ -32,10 +48,10 @@ const getParksAvailable = async (start, end, locationId) => {
                 ]
             }
         });
+        ticketsOn.forEach(t => {
+            parks = parks.filter(p => { return p.id != t.park_id })
+        });
     }
-    ticketsOn.forEach(t => {
-        parks = parks.filter(p => { return p.id != t.park_id })
-    });
     return parks;
 }
 
@@ -57,8 +73,11 @@ const getTicketsFiltered = async (active, userId) => {
 
 const getNextTicketOfPark = async (parkId) => {
     let tickets = await getTicketsFiltered(true);
+    let park = await Park.findByPk(parkId);
     tickets = tickets.filter(t => { return t.park_id == parkId }).sort((t1, t2) => { return t1.start.getTime() - t2.start.getTime() });
     let ticket = tickets[0];
+    if(!park.isEmpty && tickets.length>=2) ticket = ticket[1];
+    else return false;
     if (!ticket) return false;
     return ticket;
 }
