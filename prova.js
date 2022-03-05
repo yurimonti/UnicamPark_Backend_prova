@@ -51,10 +51,10 @@ db.sync({ force: true }).then(async () => {
     let marco = await User.create({ email: 'marco.montanari@gmail.com', username: 'marco.montanari', password: passManager.generatePass('marco') });
     /* let start = dateController.createDate(new Date('2022 02 11 11:32:00'));
     let end = dateController.createDate(new Date('2022 02 11 17:54:00')); */
-    let start = new Date();
-    start.setHours(11);
-    let end = new Date();
-    end.setHours(16);
+    let start = new Date('2022-03-05 12:00:00');
+    // start.setHours(12);
+    let end = new Date("2022-03-05 13:00:00");
+    // end.setHours(13);
     //if (dateController.controlStartEnd(start, end)) {
         let ticket1 = await quaccko.createTicket({ start: start, end: end, targa: 'AB123CD' });
         let park1 = await Park.findOne({ where: { codeNumber: '3' } });
@@ -62,8 +62,8 @@ db.sync({ force: true }).then(async () => {
     //}
     /* let myStart = dateController.createDate(new Date('2022 03 04 13:00:00'));
     let myEnd = dateController.createDate(new Date("2022 03 04 17:00:00")); */
-    let myStart = new Date('2022-03-04 11:00:00');
-    let myEnd = new Date("2022-03-04 17:00:00");
+    let myStart = new Date('2022-03-05 15:00:00');
+    let myEnd = new Date("2022-03-05 16:00:00");
     let ticket = await quaccko.createTicket({ start: myStart, end: myEnd, targa: 'ef555gh' });
     let park = await Park.findOne({ where: { codeNumber: '2' } });
     await ticket.setPark(park);

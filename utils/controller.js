@@ -22,6 +22,8 @@ const getParksAvailable = async (start, end, locationId) => {
                 ]
             }
         });
+        /* ticketsOn = await Ticket.findAll();
+        let ticketsToDel = ticketsOn.filter(t => {return (t.start.getTime()> now)||(t.end)}) */
         for (let park of parks) {
             if (ticketsOn.find(t => t.park_id == park.id))
                 park.isEmpty = false;
@@ -40,14 +42,18 @@ const getParksAvailable = async (start, end, locationId) => {
         });
     } */
     else {
-        ticketsOn = await Ticket.findAll({
+        /* ticketsOn = await Ticket.findAll({
             where: {
                 [db.Sequelize.Op.and]: [
                     { start: { [db.Sequelize.Op.lte]: start } },
                     { end: { [db.Sequelize.Op.gte]: end } }
                 ]
             }
-        });
+        }); */
+        ticketsOn = await Ticket.findAll();
+        ticketsOn = ticketsOn.filter(t => {return (t.start.getTime()>=start.getTime()&&t.start.getTime()<end.getTime())
+            ||(t.end.getTime()>=start.getTime()&&t.end.getTime()<end.getTime())
+            ||(t.start.getTime()<=start.getTime()&&t.end.getTime()>=end.getTime())});
         ticketsOn.forEach(t => {
             parks = parks.filter(p => { return p.id != t.park_id })
         });
