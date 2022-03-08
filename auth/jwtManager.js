@@ -8,7 +8,7 @@ function getAccessToken(user) {
 }
 
 function getRefreshToken(user){
-    return jwt.sign({id: user.id,admin:user.isAdmin},process.env.REFRESH_TOKEN_SECRET);
+    return jwt.sign({id: user.id,admin:user.isAdmin},process.env.REFRESH_TOKEN_SECRET,{expiresIn:'1d'});
 }
 
 function getUserByToken(token){

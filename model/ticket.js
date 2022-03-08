@@ -20,10 +20,10 @@ Ticket.init({
         type: DataTypes.DATE,
         allowNull:false
     },
-    targa:{
-        type: DataTypes.STRING(7),
-        allowNull:false
-    },
+    // targa:{
+    //     type: DataTypes.STRING(7),
+    //     allowNull:false
+    // },
     isActive: {
         type: DataTypes.BOOLEAN,
         defaultValue:true,

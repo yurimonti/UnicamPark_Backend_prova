@@ -56,7 +56,7 @@ db.sync({ force: true }).then(async () => {
     let end = new Date("2022-03-05 13:00:00");
     // end.setHours(13);
     //if (dateController.controlStartEnd(start, end)) {
-        let ticket1 = await quaccko.createTicket({ start: start, end: end, targa: 'AB123CD' });
+        let ticket1 = await quaccko.createTicket({ start: start, end: end/* , targa: 'AB123CD' */ });
         let park1 = await Park.findOne({ where: { codeNumber: '3' } });
         await ticket1.setPark(park1);
     //}
@@ -64,7 +64,7 @@ db.sync({ force: true }).then(async () => {
     let myEnd = dateController.createDate(new Date("2022 03 04 17:00:00")); */
     let myStart = new Date('2022-03-05 15:00:00');
     let myEnd = new Date("2022-03-05 16:00:00");
-    let ticket = await quaccko.createTicket({ start: myStart, end: myEnd, targa: 'ef555gh' });
+    let ticket = await quaccko.createTicket({ start: myStart, end: myEnd/* , targa: 'ef555gh' */ });
     let park = await Park.findOne({ where: { codeNumber: '2' } });
     await ticket.setPark(park);
 });
@@ -168,6 +168,24 @@ app.post('/park/next', async (req, res) => {
     return res.json(tickets);
 })
 
+//crea una prenotazione per un parcheggio
+app.post('/api/ticket/create',auth.authenticateToken,async(req,res)=>{
+    let parkId = req.body.parkId;
+    let userId = req.user.id;
+    // let targa = req.body.targa;
+    let user = await User.findOne({where:{id:userId}});
+    let park = await Park.findOne({where:{codeNumber:parkId}});
+    let startString = req.body.start;
+    let endString = req.body.end;
+    let start =  new Date(startString);
+    let end =  new Date(endString);
+    // if(!dateController.controlStartEnd(start,end)) return res.status(500).json("Not allowed");
+    // let ticket = await user.createTicket({start:start,end:end,targa:targa});
+    let ticket = await user.createTicket({start:start,end:end});
+    await ticket.setPark(park);
+    res.json(ticket);
+  });
+
 app.post('/park/info',async (req, res) => {
     let parkId = req.body.parkId;
     let park = await Park.findByPk(parkId);
@@ -218,9 +236,9 @@ app.post('/auth/registration', async (req, res) => {
       ]
     }});
     if (user && passManager.comparePass(password, user.password)) {
-      let accessToken = authMan.getAccessToken(user);
-      let refreshToken = authMan.getRefreshToken(user);
-      authMan.refreshTokens.push(refreshToken);
+      let accessToken = auth.getAccessToken(user);
+      let refreshToken = auth.getRefreshToken(user);
+      auth.refreshTokens.push(refreshToken);
       return res.json({ accessToken: accessToken, refreshToken: refreshToken });
     }
     else return res.status(400).send("username or password is not correct");
@@ -230,14 +248,14 @@ app.post('/auth/registration', async (req, res) => {
   app.post("/auth/refresh", (req, res) => {
     let refreshToken = req.body.refreshToken;
     // vede se c'è il refreshToken o se è presente nella lista dei refresh tokens, se non è presente manda errore 401
-    if (!refreshToken || !authMan.refreshTokens.includes(refreshToken)) return res.status(401).send("You are not authenticated!");
-    let user = authMan.getUserByRefreshToken(refreshToken);
+    if (!refreshToken || !auth.refreshTokens.includes(refreshToken)) return res.status(401).send("You are not authenticated!");
+    let user = auth.getUserByRefreshToken(refreshToken);
     //refresha i tokens validi
-    authMan.refreshTokens = authMan.refreshTokens.filter((token) => token !== refreshToken);
+    auth.refreshTokens = auth.refreshTokens.filter((token) => token !== refreshToken);
     // aggiorna il token ed il refreshToken
-    let newAccessToken = authMan.getAccessToken(user);
-    let newRefreshToken = authMan.getRefreshToken(user);
-    authMan.refreshTokens.push(newRefreshToken);
+    let newAccessToken = auth.getAccessToken(user);
+    let newRefreshToken = auth.getRefreshToken(user);
+    auth.refreshTokens.push(newRefreshToken);
     //manda in risposta i nuovi tokens
     res.status(200).json({
       accessToken: newAccessToken,
@@ -251,7 +269,7 @@ app.post('/auth/registration', async (req, res) => {
     let refreshToken = req.body.refreshToken;
     if(!refreshToken) res.status(400).send('token not present');
     //refresha i tokens
-    authMan.refreshTokens = authMan.refreshTokens.filter((token) => token !== refreshToken);
+    auth.refreshTokens = auth.refreshTokens.filter((token) => token !== refreshToken);
     //restituisce lo stato 200
-    res.json("You logged out successfully.");
+    res.status(200).send("You logged out successfully.");
   });
