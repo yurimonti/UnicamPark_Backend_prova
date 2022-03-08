@@ -272,4 +272,5 @@ app.post('/auth/registration', async (req, res) => {
     auth.refreshTokens = auth.refreshTokens.filter((token) => token !== refreshToken);
     //restituisce lo stato 200
     res.status(200).send("You logged out successfully.");
+    
   });
