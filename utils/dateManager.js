@@ -3,19 +3,22 @@ function adjustHour(date){
 }
 
 const getNow = () =>{
-    return createDate(new Date());
+    return new Date();
 }
 
 /**
- * it adjusts and create a date from a string
- * @param {String} dateString string that is used to create a date
- * @returns 
+ * it creates a date from a string
+ * @param {Number} hours string that rapresent hours;
+ * @param {Number} minutes string that rapresent minutes;
+ * @returns a current date with hours and minutes setted.
  */
-function createDate(dateString){
-    let date;
-    if(dateString) date = new Date(dateString);
-    else date = new Date();
-    adjustHour(date);
+function createDate(hours,minutes){
+    let date = new Date();
+    if(!hours&&!minutes) return date;
+    date.setHours(hours);
+    date.setMinutes(minutes);
+    date.setSeconds(0);
+    date.setMilliseconds(0);
     return date;
 }
 

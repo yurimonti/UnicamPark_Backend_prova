@@ -1,11 +1,6 @@
 const Ticket = require('../model/ticket');
 const Park = require('../model/park');
-const dateController = require('./dateManager');
 const db = require('../config/database');
-
-const ticketsOfParkPredicate = (ticket, parkId) => {
-    return ticket.park_id === parkId
-};
 
 const getParksAvailable = async (start, end, locationId) => {
     let parks;
@@ -51,9 +46,9 @@ const getParksAvailable = async (start, end, locationId) => {
             }
         }); */
         ticketsOn = await Ticket.findAll();
-        ticketsOn = ticketsOn.filter(t => {return (t.start.getTime()>=start.getTime()&&t.start.getTime()<end.getTime())
-            ||(t.end.getTime()>=start.getTime()&&t.end.getTime()<end.getTime())
-            ||(t.start.getTime()<=start.getTime()&&t.end.getTime()>=end.getTime())});
+        ticketsOn = ticketsOn.filter(t => {return ((t.start.getTime()>=start.getTime())&&(t.start.getTime()<end.getTime()))
+            ||((t.end.getTime()>=start.getTime())&&(t.end.getTime()<end.getTime()))
+            ||((t.start.getTime()<=start.getTime())&&(t.end.getTime()>=end.getTime()))});
         ticketsOn.forEach(t => {
             parks = parks.filter(p => { return p.id != t.park_id })
         });
@@ -69,27 +64,26 @@ const getParkInLocation = async (locationId) => {
 const getTicketsFiltered = async (active, userId) => {
     let tickets = await Ticket.findAll();
     if (userId) tickets = await Ticket.findAll({ where: { user_id: userId } });
-    let ticketPredicate;
-    let now = dateController.getNow();
-    if (active) ticketPredicate = t => { return t.end.getTime() > now.getTime() };
-    else ticketPredicate = t => { return t.end.getTime() < now.getTime() }
+    let now = new Date();
+    let ticketPredicate = (t) => { return t.end.getTime() < now.getTime() };
+    if (active) ticketPredicate = (t) => { return t.end.getTime() > now.getTime() };
     tickets = tickets.filter(ticketPredicate);
     return tickets;
 }
-
+//FIXME: rivedere errore su next quando park !isEmpty
 const getNextTicketOfPark = async (parkId) => {
     let tickets = await getTicketsFiltered(true);
     let park = await Park.findByPk(parkId);
-    tickets = tickets.filter(t => { return t.park_id == parkId }).sort((t1, t2) => { return t1.start.getTime() - t2.start.getTime() });
+    tickets = tickets.filter(t => { return t.park_id == parkId })
+        .sort((t1, t2) => { return t1.start.getTime() - t2.start.getTime()});
+    if(tickets.length==0) return false;
     let ticket = tickets[0];
-    if(!park.isEmpty && tickets.length>=2) ticket = ticket[1];
-    else return false;
-    if (!ticket) return false;
+    if(!park.isEmpty && tickets.length>=2) ticket = tickets[1];
     return ticket;
 }
 
 const endOfCurrentReservation = async (parkId) => {
-    let now = dateController.getNow();
+    let now = new Date();
     let tickets = await getTicketsFiltered(true);
     tickets = tickets.filter(t => { return t.start.getTime() <= now.getTime() }).filter(t => { return t.park_id == parkId });
     return tickets[0];
