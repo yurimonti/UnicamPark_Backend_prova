@@ -1,5 +1,5 @@
 const Sequelize = require('sequelize');
-const sequelize = new Sequelize('beckend_prova','root','',{
+const sequelize = new Sequelize('backend_prova','root','',{
     dialect: 'mariadb',
     host: 'localhost' 
 });
