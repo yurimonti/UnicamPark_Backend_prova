@@ -39,7 +39,7 @@ db.sync({ force: true }).then(async () => {
         await park.setLocation(informatica);
     }
     let quaccko = await User.create({ email: 'big.quaccko@gmail.com', username: 'big.quaccko', password: passManager.generatePass('ciao') });
-    let marco = await User.create({ email: 'marco.montanari@gmail.com', username: 'marco.montanari', password: passManager.generatePass('marco') });
+    let adminUser = await User.create({ email: 'park.admin@gmail.com', username: 'administrator', password: passManager.generatePass('admin'),isAdmin:true });
     /* let start = dateController.createDate(new Date('2022 02 11 11:32:00'));
     let end = dateController.createDate(new Date('2022 02 11 17:54:00')); */
     let start = dateController.createDate(13,0);
@@ -48,10 +48,12 @@ db.sync({ force: true }).then(async () => {
     // end.setHours(13);
     //if (dateController.controlStartEnd(start, end)) {
     let ticket1 = await quaccko.createTicket({ start: start, end: end/* , targa: 'AB123CD' */ });
+    let ticket3 = await quaccko.createTicket({ start: dateController.createDate(16,0), end: dateController.createDate(16,50)/* , targa: 'AB123CD' */ });
     let ticket2 = await quaccko.createTicket({ start: dateController.createDate(17,0), end: dateController.createDate(19,0)/* , targa: 'AB123CD' */ });
     let park1 = await Park.findOne({ where: { codeNumber: '3' } });
     await ticket1.setPark(park1);
     await ticket2.setPark(park1);
+    await ticket3.setPark(park1);
     //}
     /* let myStart = dateController.createDate(new Date('2022 03 04 13:00:00'));
     let myEnd = dateController.createDate(new Date("2022 03 04 17:00:00")); */
@@ -204,16 +206,6 @@ app.post('/park/info', async (req, res) => {
     return res.json({ end: ticket, next: nextTicket, location: location });
 })
 
-/* app.get('/park/info', async (req, res) => {
-    let parkId = req.body.parkId;
-    let park = await Park.findByPk(parkId);
-    let ticket;
-    if(park.isEmpty) ticket = await Controller.getNextTicketOfPark(park.id);
-    else ticket = await Controller.endOfCurrentReservation(park.id)
-    if(!ticket) return res.json('error');
-    return res.json({park:park,ticket:ticket});
-}) */
-
 //------------------------------authentication-----------------------------------------------
 
 app.post('/auth/registration', async (req, res) => {
@@ -232,6 +224,7 @@ app.post('/auth/registration', async (req, res) => {
 app.post('/auth/login', async (req, res) => {
     let username = req.body.username;
     let password = req.body.password;
+    let isAdmin = req.body.isAdmin;
     let user = await User.findOne({
         where: {
             [db.Sequelize.Op.or]: [
@@ -240,7 +233,7 @@ app.post('/auth/login', async (req, res) => {
             ]
         }
     });
-    if (user && passManager.comparePass(password, user.password)) {
+    if (user && passManager.comparePass(password, user.password) && user.isAdmin==isAdmin) {
         let accessToken = auth.getAccessToken(user);
         let refreshToken = auth.getRefreshToken(user);
         auth.refreshTokens.push(refreshToken);
