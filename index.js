@@ -109,12 +109,12 @@ app.post('/parks', async (req, res) => {
     if (start && end) {
         let s = new Date(start);
         let e = new Date(end);
-        if(!dateController.startEndCheck(start,end)) return res.sendStatus(500);
+        if(!dateController.startEndCheck(s,e)) return res.sendStatus(500);
         parks = await Controller.getParksAvailable(s, e);
     }
     if (!start && end) {
         let e = new Date(end);
-        if(!dateController.startEndCheck(now,end)) return res.sendStatus(500);
+        if(!dateController.startEndCheck(now,e)) return res.sendStatus(500);
         parks = await Controller.getParksAvailable(now, e);
     }
     if (start && !end) {
