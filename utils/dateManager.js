@@ -1,7 +1,3 @@
-function adjustHour(date){
-    date.setHours(date.getHours()+1);
-}
-
 const getNow = () =>{
     return new Date();
 }
@@ -10,34 +6,49 @@ const getNow = () =>{
  * it creates a date from a string
  * @param {Number} hours string that rapresent hours;
  * @param {Number} minutes string that rapresent minutes;
- * @returns a current date with hours and minutes setted.
+ * @param {Number} seconds string that rapresent seconds;
+ * @param {Number} milliseconds string that rapresent milliseconds;
+ * @returns {Date} a current date with time setted.
  */
-function createDate(hours,minutes){
+function createDate(hours,minutes,seconds,milliseconds){
     let date = new Date();
     if(!hours&&!minutes) return date;
     date.setHours(hours);
     date.setMinutes(minutes);
     date.setSeconds(0);
+    if(seconds) date.setSeconds(seconds);
     date.setMilliseconds(0);
+    if(milliseconds)date.setMilliseconds(milliseconds);
     return date;
 }
 
-function controlDate(date){
-    if(date.getHours()>=9 && date.getHours()<=18)return date;
-    else return null;
+/**
+ * @param {Date} start 
+ * @param {Date} end 
+ * @returns {Boolean}
+ */
+function startEndCheck(start,end){
+    if((checkDate(start) && checkDate(end))&&(start.getTime() < end.getTime()))return true;
+    else return false;
 }
 
-function controlStartEnd(start,end){
-    start = controlDate(start);
-    end = controlDate(end);
-    if((!start)||(!end))return false;
-    if((start.getTime()>=end.getTime())||(start.getDate()!=end.getDate())||(start.getMonth()!=end.getMonth())||(start.getFullYear()!=end.getFullYear())) return false;
-    else return true;
+/**
+ * 
+ * @param {Date} date 
+ * @returns {Boolean} true if date hours value fit between 9 and 18 
+ */
+function checkDate(date){
+    if(date.getHours()>=9 && date.getHours()<=18) return true;
+    else return false;
 }
 
+/**
+ * @param {Date} date to convert
+ * @returns {String} format "hours" : "minutes"
+ */
 function getTimeStringFromDate(date){
     let result = date.getHours()+":"+ date.getMinutes();
     return result;
 }
 
-module.exports = {getNow,controlStartEnd,controlDate,createDate,getTimeStringFromDate};
+module.exports = {getNow,checkDate,startEndCheck,createDate,getTimeStringFromDate};
