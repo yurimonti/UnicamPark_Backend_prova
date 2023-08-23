@@ -10,7 +10,7 @@
   "author": "yurimonti",
   "license": "ISC",
   "devDependencies": {
-    "nodemon": "^2.0.15"
+    "nodemon": "^2.0.22"
   },
   "dependencies": {
     "bcrypt": "^5.0.1",
